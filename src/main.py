@@ -8,13 +8,13 @@ from aiogram.filters import CommandStart
 from aiogram.fsm import state
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import StatesGroup, State
-from aiogram.types import Message
+from aiogram.types import Message, ReplyKeyboardRemove
 from dotenv import load_dotenv
 from aiogram import F
 from sqlalchemy import create_engine
 from keyboards.reply_kb import *
 from config import *
-from src.database.db_utils import db_register_user, is_exists
+from src.database.db_utils import db_register_user, is_exists,db_get_vacancy
 
 dp = Dispatcher()
 bot = Bot(TOKEN, default=DefaultBotProperties(parse_mode='HTML'))
@@ -81,11 +81,31 @@ async def parse_register(message: Message,state: FSMContext):
     else:
         await message.answer(text="У вас уже есть анкета!")
     await state.clear()
+@dp.message(F.text == "Вакансии")
+async def send_vacancy(message: Message):
+    vacancies = db_get_vacancy()
+    vacancies_text = "Список Вакансий:\n\n"
+
+    for vacancy in vacancies:
+        enterprise = vacancy.enterprise_vacancy
+        vacancies_text += (
+            f"📝 Вакансия: {vacancy.post}\n"
+            f"🏢 Компания: {enterprise.name}\n"
+            f"📍 Адрес: {enterprise.address}\n"
+            f"💰 Зарплата: {vacancy.salary}\n"
+            f"👶 Возраст: {vacancy.age} лет\n"
+            f"🎓 Образование: {vacancy.education}\n"
+            f"🛠️ Опыт: {vacancy.experience} лет\n"
+            f"🌍 Гражданство: {vacancy.citizen}\n"
+            f"🔖 Лицензия: {enterprise.license}\n"
+            f"{'=' * 40}\n"
+        )
+    await message.answer(vacancies_text)
 @dp.message(F.text == "Зарегистрироваться")
 async def register_user(message: Message, state: FSMContext):
 
     if is_exists(message.chat.id):
-        await message.answer(f"У вас уже есть анкета!")
+        await message.answer(f"У вас уже есть анкета!",reply_markup=kb_main)
         return
     registration_text = (
         "<b>ФИО:</b>\n"
@@ -97,8 +117,7 @@ async def register_user(message: Message, state: FSMContext):
         "<b>Диплом:</b>\n"
     )
     await message.answer(f"Пожалуйста, заполните форму ниже.(Скопируйте сообщение и отправьте заполненную форму)")
-    await message.answer(registration_text, parse_mode='HTML')
-
+    await message.answer(registration_text, parse_mode='HTML',reply_markup=kb_main)
     await state.set_state(RegistrationStates.waiting_for_registration)
 
 async def main():

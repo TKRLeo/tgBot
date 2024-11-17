@@ -1,5 +1,5 @@
 from sqlalchemy.exc import IntegrityError
-from src.database.models import Applicant
+from src.database.models import Applicant, Vacancy, Enterprise
 from sqlalchemy.orm import Session
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import update, select, delete, text
@@ -10,6 +10,9 @@ with Session(engine) as session:
 
 def is_exists(chat_id: int):
     return db_session.query(Applicant).filter(Applicant.telegram_id == chat_id).first() is not None
+
+def db_get_vacancy():
+    return db_session.query(Vacancy).join(Enterprise).all()
 
 def db_register_user(name: str, birthday: str, gender: str, experience: int, education: str,
                      citizen: str, diplom: str,chat_id : int):
