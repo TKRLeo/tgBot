@@ -8,13 +8,15 @@ from aiogram.filters import CommandStart
 from aiogram.fsm import state
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import StatesGroup, State
-from aiogram.types import Message, ReplyKeyboardRemove
+from aiogram.types import Message, ReplyKeyboardRemove, InlineKeyboardButton, CallbackQuery
 from dotenv import load_dotenv
 from aiogram import F
 from sqlalchemy import create_engine
 from keyboards.reply_kb import *
 from config import *
-from src.database.db_utils import db_register_user, is_exists,db_get_vacancy
+from src.database.db_utils import db_register_user, is_exists, db_get_vacancy, db_apply_to_vacancy, db_get_applicant, \
+    update_applicant_field
+from src.keyboards.inline_kb import update_applicant_kb
 
 dp = Dispatcher()
 bot = Bot(TOKEN, default=DefaultBotProperties(parse_mode='HTML'))
@@ -51,7 +53,7 @@ async def parse_register(message: Message,state: FSMContext):
 
     birth_date_str = required_fields["Дату рождения"]
 
-    if not re.match(r'^\d{2}\.\d{2}\.\d{2}$', birth_date_str):
+    if not re.match(r'^\d{2}\.\d{2}\.\d{4}$', birth_date_str):
         await message.answer(text="Неверный формат 'Дата рождения'. Используйте ДД.ММ.ГГ.")
         return
 
@@ -81,13 +83,48 @@ async def parse_register(message: Message,state: FSMContext):
     else:
         await message.answer(text="У вас уже есть анкета!")
     await state.clear()
+
+@dp.message(F.text == 'Изменить анкету')
+async def update_applicant(message: Message):
+    text = get_applicant(message)
+
+    await message.answer(text,reply_markup=update_applicant_kb)
+    
+def get_applicant(message: Message):
+    id = message.chat.id
+
+    applicant = db_get_applicant(id)
+
+    name = applicant.name.strip()
+    birthday = applicant.birthday.strip()
+    gender = applicant.gender.strip()
+    experience = applicant.experience
+    education = applicant.education.strip()
+    citizen = applicant.citizen.strip()
+    diplom = applicant.diplom.strip()
+
+    registration_text = f"""
+<b>ФИО:</b> {name}
+<b>Дата рождения:</b> {birthday}
+<b>Пол:</b> {gender}
+<b>Опыт работы:</b> {experience}
+<b>Образование:</b> {education}
+<b>Гражданство:</b> {citizen}
+<b>Диплом:</b> {diplom}
+    """
+
+
+    return registration_text
+@dp.message(F.text == 'Моя анкета')
+async def send_applicant_info(message:Message):
+    await message.answer(get_applicant(message),parse_mode = 'HTML')
 @dp.message(F.text == "Вакансии")
 async def send_vacancy(message: Message):
     vacancies = db_get_vacancy()
-    vacancies_text = "Список Вакансий:\n\n"
-
+    await message.answer("Список Вакансий:\n\n")
     for vacancy in vacancies:
         enterprise = vacancy.enterprise_vacancy
+        vacancies_text = ""
         vacancies_text += (
             f"📝 Вакансия: {vacancy.post}\n"
             f"🏢 Компания: {enterprise.name}\n"
@@ -100,7 +137,45 @@ async def send_vacancy(message: Message):
             f"🔖 Лицензия: {enterprise.license}\n"
             f"{'=' * 40}\n"
         )
-    await message.answer(vacancies_text)
+
+        hire_kb = InlineKeyboardMarkup(inline_keyboard=[
+            [InlineKeyboardButton(text='Откликнуться',callback_data=f"apply:{message.chat.id}:{vacancy.id}")]
+        ])
+        await message.answer(vacancies_text,reply_markup=hire_kb)
+
+
+@dp.callback_query(lambda cb: cb.data.startswith("apply:"))
+async def apply_to_vacancy(callback_query: CallbackQuery):
+    tokens = callback_query.data.split(":")  # Извлечение id вакансии
+    print(tokens)
+    db_apply_to_vacancy(int(tokens[1]), int(tokens[2]))
+    await callback_query.answer("Вы откликнулись на вакансию!")  # Подтверждение
+
+
+@dp.callback_query(lambda c: c.data.startswith('update_'))
+async def process_update_button(callback_query: CallbackQuery):
+    field_map = {
+        'update_name': 'name',
+        'update_birthday': 'birthday',
+        'update_gender': 'gender',
+        'update_experience': 'experience',
+        'update_education': 'education',
+        'update_citizenship': 'citizen',
+        'update_diploma': 'diplom',
+    }
+
+    field = field_map.get(callback_query.data)
+
+    # Запрос нового значения от пользователя
+    await bot.send_message(callback_query.from_user.id, f"Введите новое значение для {field}:")
+
+    # Ожидание ответа
+    @dp.message(lambda message: message.chat.id == callback_query.from_user.id)
+    async def handle_new_value(message: Message):
+        new_value = message.text
+        update_applicant_field(callback_query.from_user.id, field, new_value)
+        await bot.send_message(message.chat.id, f"Значение для {field} обновлено на: {new_value}")
+
 @dp.message(F.text == "Зарегистрироваться")
 async def register_user(message: Message, state: FSMContext):
 
@@ -125,3 +200,4 @@ async def main():
 
 if __name__ == '__main__':
     asyncio.run(main())
+

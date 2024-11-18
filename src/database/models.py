@@ -55,8 +55,8 @@ class Vacancy(Base):
 class Request(Base):
     __tablename__ = 'request'
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True,unique=True)
-    applicant_id: Mapped[int] = mapped_column(Integer,ForeignKey("applicant.id"),unique=True)
-    vacancy_id: Mapped[int] = mapped_column(Integer,ForeignKey("vacancy.id"),unique=True)
+    applicant_id: Mapped[int] = mapped_column(Integer,ForeignKey("applicant.id"))
+    vacancy_id: Mapped[int] = mapped_column(Integer,ForeignKey("vacancy.id"))
 
     vacancy_request = relationship("Vacancy", back_populates='request_vacancy')
     applicant_request = relationship("Applicant", back_populates='request_applicant')
@@ -79,10 +79,10 @@ class Manager(Base):
 
 class Record(Base):
     __tablename__ = "record"
-    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
-    vacancy_id: Mapped[int] = mapped_column(Integer,ForeignKey("vacancy.id"),unique=True)
-    applicant_id: Mapped[int] = mapped_column(Integer,ForeignKey("applicant.id"),unique=True)
-    manager_id: Mapped[int] = mapped_column(Integer, ForeignKey("manager.id"), unique=True)
+    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True,unique = True)
+    vacancy_id: Mapped[int] = mapped_column(Integer,ForeignKey("vacancy.id"))
+    applicant_id: Mapped[int] = mapped_column(Integer,ForeignKey("applicant.id"))
+    manager_id: Mapped[int] = mapped_column(Integer, ForeignKey("manager.id"))
 
     vacancy_record = relationship("Vacancy", back_populates="record_vacancy")
     applicant_record = relationship("Applicant", back_populates="record_applicant")
