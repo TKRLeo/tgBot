@@ -38,6 +38,7 @@ class Vacancy(Base):
     __tablename__ = 'vacancy'
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True,unique=True)
     enterprise_id: Mapped[int] = mapped_column(ForeignKey('enterprise.id'),unique=True)
+    manager_id: Mapped[int] = mapped_column(ForeignKey('manager.id'),unique = False)
     salary: Mapped[int] = mapped_column(Integer)
     age: Mapped[int] = mapped_column(Integer)
     post: Mapped[str] = mapped_column(String(50))
@@ -47,10 +48,11 @@ class Vacancy(Base):
 
     enterprise_vacancy = relationship("Enterprise",back_populates='vacancy_enterprise')
     request_vacancy = relationship("Request", back_populates='vacancy_request')
+    manager_vacancy = relationship("Manager", back_populates="vacancy_manager")
 
     record_vacancy = relationship("Record", back_populates="vacancy_record")
     def __str__(self):
-        return self.name
+        return self.__tablename__
 
 class Request(Base):
     __tablename__ = 'request'
@@ -67,6 +69,7 @@ class Request(Base):
 class Manager(Base):
     __tablename__ = 'manager'
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True,unique=True)
+    telegram_id: Mapped[int] = mapped_column(BigInteger, unique=True)
     address: Mapped[str] = mapped_column(String(50))
     telephone: Mapped[int] = mapped_column(BigInteger)
     name: Mapped[str] = mapped_column(String(100),unique=True)
@@ -74,6 +77,7 @@ class Manager(Base):
     gender: Mapped[str] = mapped_column(String(10))
 
     record_manager = relationship("Record", back_populates="manager_record")
+    vacancy_manager = relationship("Vacancy", back_populates="manager_vacancy")
     def __str__(self):
         return self.name
 
@@ -90,3 +94,5 @@ class Record(Base):
 
     def __str__(self):
         return self.name
+
+
